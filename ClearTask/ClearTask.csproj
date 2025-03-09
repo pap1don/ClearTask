@@ -9,6 +9,8 @@
   <ItemGroup>
     <PackageReference Include="Blazorise" Version="1.7.5" />
     <PackageReference Include="Blazorise.Bootstrap5" Version="1.7.5" />
+    <PackageReference Include="Blazorise.Components" Version="1.7.5" />
+    <PackageReference Include="Blazorise.DataGrid" Version="1.7.5" />
     <PackageReference Include="Blazorise.Icons.FontAwesome" Version="1.7.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2">

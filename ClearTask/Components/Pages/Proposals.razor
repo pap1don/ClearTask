@@ -1,0 +1,130 @@
+﻿@page "/proposals"
+@using ClearTask.Components.Models
+@using ClearTask.Components.Services
+@inject IProposalService ProposalService
+@inject NavigationManager NavManager
+
+<PageTitle>Список заявок</PageTitle>
+
+<h3 class="text-center">Список заявок</h3>
+
+<button class="btn btn-primary mb-3" @onclick="OpenCreateForm">Создать заявку</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>№ заявки</th>
+            <th>Автор заявки</th>
+            <th>Подразделение автора</th>
+            <th>Дата создания</th>
+            <th>Статус</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var proposal in proposals)
+        {
+            <tr>
+                <td>@proposal.FullNumber</td>
+                <td>@proposal.Author</td>
+                <td>@proposal.Division</td>
+                <td>@proposal.CreationDate.ToString("dd.MM.yyyy")</td>
+                <td>@proposal.TextStatus</td>
+                <td>
+                    @if (proposal.Status == ProposalStatus.Created)
+                    {
+                        <button class="btn btn-danger" @onclick="() => OpenDeleteConfirmation(proposal)">Удалить</button>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<Modal @bind-Visible="createFormIsOpened">
+    <ModalHeader>
+        Создание заявки
+    </ModalHeader>
+    <ModalBody>
+        <EditForm Model="@newProposal" OnValidSubmit="CreateProposal">
+            <DataAnnotationsValidator />
+            <Blazorise.ValidationSummary />
+
+            <Blazorise.TextEdit @bind-Value="newProposal.Author" Placeholder="Автор" />
+            <Blazorise.TextEdit @bind-Value="newProposal.Division" Placeholder="Подразделение" />
+
+            <button type="submit" class="btn btn-primary mt-3">Сохранить</button>
+        </EditForm>
+    </ModalBody>
+    <ModalFooter>
+        <button class="btn btn-secondary" @onclick="CloseCreateForm">Закрыть</button>
+    </ModalFooter>
+</Modal>
+
+<Modal @bind-Visible="deleteConfirmationIsOpened">
+    <ModalBody>
+        Вы уверены, что хотите удалить заявку №@selectedProposal.FullNumber?
+    </ModalBody>
+    <ModalFooter>
+        <button class="btn btn-danger" @onclick="ConfirmDelete">Да</button>
+        <button class="btn btn-secondary" @onclick="CancelDelete">Нет</button>
+    </ModalFooter>
+</Modal>
+
+@code {
+    private List<Proposal> proposals = new List<Proposal>();
+    private bool createFormIsOpened = false;
+    private bool deleteConfirmationIsOpened = false;
+    private Proposal selectedProposal = null;
+    private Proposal newProposal = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        proposals = await ProposalService.GetAllProposals() ?? new List<Proposal>();
+    }
+
+    private void OpenCreateForm()
+    {
+        newProposal = new Proposal { Status = ProposalStatus.Created };
+        createFormIsOpened = true;
+    }
+
+    private void CloseCreateForm()
+    {
+        createFormIsOpened = false;
+    }
+
+    private async Task CreateProposal()
+    {
+        if (newProposal != null)
+        {
+            await ProposalService.CreateProposal(newProposal);
+            proposals = await ProposalService.GetAllProposals();
+            NavManager.NavigateTo($"proposals/{newProposal.Id}");
+        }
+    }
+
+    private void OpenDeleteConfirmation(Proposal proposal)
+    {
+        selectedProposal = proposal;
+        if (selectedProposal != null)
+        {
+            deleteConfirmationIsOpened = true;
+        }
+    }
+
+    private void CancelDelete()
+    {
+        deleteConfirmationIsOpened = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (selectedProposal != null)
+        {
+            await ProposalService.DeleteProposal(selectedProposal.Id);
+            proposals = await ProposalService.GetAllProposals();
+            deleteConfirmationIsOpened = false;
+        }
+    }
+}
