@@ -22,16 +22,16 @@
         </tr>
     </thead>
     <tbody>
-        @foreach (var proposal in proposals)
+        @foreach (var proposal in proposals ?? new List<Proposal>())
         {
-            if (proposal != null) // Проверка на null
+            if (proposal != null)
             {
                 <tr>
-                    <td>@proposal.FullNumber</td>
-                    <td>@proposal.Author</td>
-                    <td>@proposal.Division</td>
-                    <td>@proposal.CreationDate.ToString("dd.MM.yyyy")</td>
-                    <td>@proposal.TextStatus</td>
+                    <td>@(proposal.FullNumber ?? "Не указан")</td>
+                    <td>@(proposal.Author ?? "")</td>
+                    <td>@(proposal.Division ?? "")</td>
+                    <td>@(proposal.CreationDate.ToString("dd.MM.yyyy") ?? "")</td>
+                    <td>@(proposal.TextStatus ?? "")</td>
                     <td>
                         @if (proposal.Status == ProposalStatus.Created)
                         {
@@ -44,26 +44,35 @@
     </tbody>
 </table>
 
+<!-- Форма создания -->
 <Modal @bind-Visible="createFormIsOpened">
     <ModalHeader>
         Создание заявки
     </ModalHeader>
     <ModalBody>
-        <EditForm Model="@newProposal" OnValidSubmit="CreateProposal">
-            <DataAnnotationsValidator />
-            <Blazorise.ValidationSummary />
+        @if (newProposal != null) // Проверка на null
+        {
+            <EditForm Model="@newProposal" OnValidSubmit="CreateProposal">
+                <DataAnnotationsValidator />
+                <Blazorise.ValidationSummary />
 
-            <Blazorise.TextEdit @bind-Value="newProposal.Author" Placeholder="Автор" />
-            <Blazorise.TextEdit @bind-Value="newProposal.Division" Placeholder="Подразделение" />
+                <Blazorise.TextEdit @bind-Value="newProposal.Author" Placeholder="Автор" Required />
+                <Blazorise.TextEdit @bind-Value="newProposal.Division" Placeholder="Подразделение" Required />
 
-            <button type="submit" class="btn btn-primary mt-3">Сохранить</button>
-        </EditForm>
+                <button type="submit" class="btn btn-primary mt-3">Сохранить</button>
+            </EditForm>
+        }
+        else
+        {
+            <p>Ошибка: newProposal не инициализирован</p>
+        }
     </ModalBody>
     <ModalFooter>
         <button class="btn btn-secondary" @onclick="CloseCreateForm">Закрыть</button>
     </ModalFooter>
 </Modal>
 
+<!-- Модальное окно подтверждения удаления -->
 <Modal @bind-Visible="deleteConfirmationIsOpened">
     <ModalBody>
         @if (selectedProposal != null)
@@ -72,7 +81,7 @@
         }
         else
         {
-            <text>Нет выбранной заявки.</text>
+            <text>Нет выбранной заявки</text>
         }
     </ModalBody>
     <ModalFooter>
@@ -82,11 +91,16 @@
 </Modal>
 
 @code {
-    private List<Proposal> proposals = new List<Proposal>(); // Инициализация
+    private List<Proposal> proposals = new List<Proposal>();
     private bool createFormIsOpened = false;
     private bool deleteConfirmationIsOpened = false;
-    private Proposal selectedProposal = new Proposal(); // Инициализация вместо null
-    private Proposal newProposal = new();
+    private Proposal selectedProposal = new(); // Инициализация
+    private Proposal newProposal = new()
+        {
+            Author = string.Empty,
+            Division = string.Empty,
+            Status = ProposalStatus.Created
+        };
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,8 +109,24 @@
 
     private void OpenCreateForm()
     {
-        newProposal = new Proposal { Status = ProposalStatus.Created };
+        newProposal = new Proposal
+            {
+                Author = string.Empty,
+                Division = string.Empty,
+                Status = ProposalStatus.Created
+            };
         createFormIsOpened = true;
+    }
+
+    private async Task CreateProposal()
+    {
+        if (newProposal != null && !string.IsNullOrEmpty(newProposal.Author) && !string.IsNullOrEmpty(newProposal.Division))
+        {
+            await ProposalService.CreateProposal(newProposal);
+            proposals = await ProposalService.GetAllProposals() ?? new List<Proposal>();
+            NavManager.NavigateTo($"/proposals/{newProposal.Id}");
+            createFormIsOpened = false;
+        }
     }
 
     private void CloseCreateForm()
@@ -104,28 +134,18 @@
         createFormIsOpened = false;
     }
 
-    private async Task CreateProposal()
+    private void CancelDelete()
     {
-        if (newProposal != null)
-        {
-            await ProposalService.CreateProposal(newProposal);
-            proposals = await ProposalService.GetAllProposals();
-            NavManager.NavigateTo($"proposals/{newProposal.Id}");
-        }
+        deleteConfirmationIsOpened = false;
     }
 
     private void OpenDeleteConfirmation(Proposal proposal)
     {
-        if (proposal != null) // Проверка на null
+        if (proposal != null)
         {
-            selectedProposal = proposal;
+            selectedProposal = proposal.Clone(); // Теперь работает
             deleteConfirmationIsOpened = true;
         }
-    }
-
-    private void CancelDelete()
-    {
-        deleteConfirmationIsOpened = false;
     }
 
     private async Task ConfirmDelete()
@@ -133,7 +153,7 @@
         if (selectedProposal != null)
         {
             await ProposalService.DeleteProposal(selectedProposal.Id);
-            proposals = await ProposalService.GetAllProposals();
+            proposals = await ProposalService.GetAllProposals() ?? new List<Proposal>();
             deleteConfirmationIsOpened = false;
         }
     }

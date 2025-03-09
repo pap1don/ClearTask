@@ -18,17 +18,37 @@ namespace ClearTask.Components.Services
         public async Task<List<Proposal>> GetAllProposals()
         {
             using var context = purchaseContextFactory.CreateDbContext();
-            return await context.Proposals.Where(p => p.Status != ProposalStatus.Deleted).ToListAsync();
+            return await context.Proposals
+                .Where(p => p.Status != ProposalStatus.Deleted)
+                .ToListAsync() ?? new List<Proposal>();
         }
+
+        //public async Task CreateProposal(Proposal proposal)
+        //{
+        //    using var context = purchaseContextFactory.CreateDbContext();
+
+        //    // Получаем максимальный номер за текущий год или 0, если записей нет
+        //    var lastNumber = await context.Proposals
+        //        .Where(p => p.CreationDate.Year == DateTime.Now.Year && p.Status != ProposalStatus.Deleted)
+        //        .Select(p => (int?)p.Number) // Приводим к nullable, чтобы MaxAsync вернул int?
+        //        .MaxAsync() ?? 0;
+
+        //    proposal.Number = lastNumber + 1;
+        //    proposal.CreationDate = DateTime.Now;
+        //    proposal.Status = ProposalStatus.Created;
+
+        //    context.Proposals.Add(proposal);
+        //    await context.SaveChangesAsync();
+        //}
 
         public async Task CreateProposal(Proposal proposal)
         {
             using var context = purchaseContextFactory.CreateDbContext();
-            int lastNumber = await context.Proposals
+
+            // Генерация номера
+            var lastNumber = await context.Proposals
                 .Where(p => p.CreationDate.Year == DateTime.Now.Year && p.Status != ProposalStatus.Deleted)
-                .OrderByDescending(p => p.Number)
-                .Select(p => p.Number)
-                .FirstOrDefaultAsync();
+                .MaxAsync(p => (int?)p.Number) ?? 0;
 
             proposal.Number = lastNumber + 1;
             proposal.CreationDate = DateTime.Now;
@@ -52,9 +72,11 @@ namespace ClearTask.Components.Services
         public async Task<Proposal> GetProposalById(int id)
         {
             using var context = purchaseContextFactory.CreateDbContext();
-            return await context.Proposals.FindAsync(id);
+            return await context.Proposals
+                .Include(p => p.Materials.Where(m => m.Status != MaterialStatus.Deleted))
+                .FirstOrDefaultAsync(p => p.Id == id && p.Status != ProposalStatus.Deleted);
         }
-        // В ProposalService.cs
+
         public async Task UpdateProposal(Proposal proposal)
         {
             using var context = purchaseContextFactory.CreateDbContext();
@@ -65,6 +87,7 @@ namespace ClearTask.Components.Services
         public async Task CreateProposalMaterial(ProposalMaterial material)
         {
             using var context = purchaseContextFactory.CreateDbContext();
+            material.Status = MaterialStatus.Created;
             context.ProposalMaterials.Add(material);
             await context.SaveChangesAsync();
         }
@@ -75,7 +98,5 @@ namespace ClearTask.Components.Services
             context.ProposalMaterials.Update(material);
             await context.SaveChangesAsync();
         }
-
-
     }
 }

@@ -1,6 +1,325 @@
-﻿namespace ClearTask.Components.Pages
+﻿@page "/proposals/{Id:int}"
+@using ClearTask.Components.Models
+@using ClearTask.Components.Services
+@inject IProposalService ProposalService
+@inject NavigationManager NavManager
+
+@if (proposal == null)
 {
-    public class ProposalDetails
+    <PageTitle>Заявка не найдена!</PageTitle>
+    <h1 class="text-center mt-5">Заявка не найдена!</h1>
+}
+else
+{
+    <PageTitle>Заявка №@proposal.FullNumber</PageTitle>
+    
+    <button class="btn btn-secondary mb-3" @onclick="GoBack">Вернуться</button>
+
+    <Blazorise.TabStrip>
+        <Blazorise.Tab Title="Заявка">
+            @if (proposal != null)
+            {
+                <Blazorise.Table ZIndex="ZIndexLevel.None">
+                    <TableHeader>
+                        <tr>
+                            <th>Поле</th>
+                            <th>Значение</th>
+                        </tr>
+                    </TableHeader>
+                    <TableBody>
+                        <tr>
+                            <td>№ заявки</td>
+                            <td>@proposal.FullNumber</td>
+                        </tr>
+                        <tr>
+                            <td>Автор</td>
+                            <td>@proposal.Author</td>
+                        </tr>
+                        <tr>
+                            <td>Подразделение</td>
+                            <td>@proposal.Division</td>
+                        </tr>
+                        <tr>
+                            <td>Дата создания</td>
+                            <td>@proposal.CreationDate.ToString("dd.MM.yyyy")</td>
+                        </tr>
+                        <tr>
+                            <td>Статус</td>
+                            <td>@proposal.TextStatus</td>
+                        </tr>
+                    </TableBody>
+                </Blazorise.Table>
+
+                <div class="d-flex gap-2 mt-3">
+                    @if (proposal.Status == ProposalStatus.Created)
+                    {
+                        <button class="btn btn-primary" @onclick="OpenEditForm">Редактировать</button>
+                        <button class="btn btn-danger" @onclick="OpenDeleteConfirmation">Удалить</button>
+                        <button class="btn btn-success" @onclick="OpenApproveConfirmation">Утвердить</button>
+                    }
+                </div>
+            }
+        </Blazorise.Tab>
+
+        <Blazorise.Tab Title="Материалы">
+            @if (proposal.Status == ProposalStatus.Created)
+            {
+                <button class="btn btn-primary mb-3" @onclick="OpenCreateMaterialForm">Создать материал</button>
+            }
+
+            <Blazorise.Table>
+                <TableHeader>
+                    <tr>
+                        <th>Наименование</th>
+                        <th>Код</th>
+                        <th>Количество</th>
+                        <th>Комментарий</th>
+                        <th>Действия</th>
+                    </tr>
+                </TableHeader>
+                <TableBody>
+                    @foreach (var material in proposal.Materials)
+                    {
+                        @if (material.Status == MaterialStatus.Created)
+                        {
+                            <tr>
+                                <td>@material.Name</td>
+                                <td>@material.Code</td>
+                                <td>@material.Quantity</td>
+                                <td>@material.Comment</td>
+                                <td>
+                                    @if (proposal.Status == ProposalStatus.Created)
+                                    {
+                                        <button class="btn btn-warning btn-sm" @onclick="() => OpenEditMaterial(material)">Редактировать</button>
+                                        <button class="btn btn-danger btn-sm" @onclick="() => OpenDeleteMaterialConfirmation(material)">Удалить</button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </TableBody>
+            </Blazorise.Table>
+        </Blazorise.Tab>
+    </Blazorise.TabStrip>
+}
+
+<Modal @bind-Visible="isEditFormOpen">
+    <ModalHeader>
+        Редактирование заявки
+    </ModalHeader>
+    <ModalBody>
+        <EditForm Model="@editableProposal">
+            <DataAnnotationsValidator />
+            <Blazorise.ValidationSummary />
+
+            <Blazorise.TextEdit @bind-Value="editableProposal.Author" Placeholder="Автор" />
+            <Blazorise.TextEdit @bind-Value="editableProposal.Division" Placeholder="Подразделение" />
+
+            <button type="submit" class="btn btn-primary mt-3" @onclick="SaveProposalChanges">Сохранить</button>
+        </EditForm>
+    </ModalBody>
+    <ModalFooter>
+        <button class="btn btn-secondary" @onclick="CloseEditForm">Закрыть</button>
+    </ModalFooter>
+</Modal>
+
+<Modal @bind-Visible="isDeleteConfirmationOpen">
+    <ModalBody>
+        Вы уверены, что хотите удалить заявку №@proposal.FullNumber?
+    </ModalBody>
+    <ModalFooter>
+        <button class="btn btn-danger" @onclick="ConfirmDeleteProposal">Да</button>
+        <button class="btn btn-secondary" @onclick="CancelDelete">Нет</button>
+    </ModalFooter>
+</Modal>
+
+<Modal @bind-Visible="isApproveConfirmationOpen">
+    <ModalBody>
+        Вы уверены, что хотите утвердить заявку №@proposal.FullNumber?
+    </ModalBody>
+    <ModalFooter>
+        <button class="btn btn-success" @onclick="ConfirmApproveProposal">Да</button>
+        <button class="btn btn-secondary" @onclick="CancelApprove">Нет</button>
+    </ModalFooter>
+</Modal>
+
+<Modal @bind-Visible="isCreateMaterialOpen">
+    <ModalHeader>
+        Создание материала
+    </ModalHeader>
+    <ModalBody>
+        <EditForm Model="@newMaterial">
+            <DataAnnotationsValidator />
+            <Blazorise.ValidationSummary />
+
+            <Blazorise.TextEdit @bind-Value="newMaterial.Name" Placeholder="Наименование" Required />
+            <Blazorise.TextEdit @bind-Value="newMaterial.Code" MaxLength="10" Placeholder="Код" Required />
+            <Blazorise.NumericEdit @bind-Value="newMaterial.Quantity" Min="1" Placeholder="Количество" Required />
+            <Blazorise.TextEdit @bind-Value="newMaterial.Comment" Placeholder="Комментарий" />
+
+            <button type="submit" class="btn btn-primary mt-3" @onclick="CreateMaterial">Сохранить</button>
+        </EditForm>
+    </ModalBody>
+    <ModalFooter>
+        <button class="btn btn-secondary" @onclick="CloseCreateMaterialForm">Закрыть</button>
+    </ModalFooter>
+</Modal>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Proposal proposal;
+    private bool isEditFormOpen = false;
+    private bool isDeleteConfirmationOpen = false;
+    private bool isApproveConfirmationOpen = false;
+    private bool isCreateMaterialOpen = false;
+
+    // Копия заявки для редактирования
+    private Proposal editableProposal = new();
+
+    // Новый материал
+    private ProposalMaterial newMaterial = new();
+
+    // Редактируемый материал
+    private ProposalMaterial editingMaterial;
+    private bool isEditMaterialOpen = false;
+
+    protected override async Task OnInitializedAsync()
     {
+        proposal = await ProposalService.GetProposalById(Id);
+        if (proposal != null && proposal.Status == ProposalStatus.Deleted)
+        {
+            proposal = null;
+        }
+
+        // Создаем копию для редактирования
+        editableProposal = proposal?.Clone() ?? new Proposal();
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/proposals");
+    }
+
+    // Редактирование заявки
+    private void OpenEditForm()
+    {
+        editableProposal = proposal?.Clone() ?? new Proposal();
+        isEditFormOpen = true;
+    }
+
+    private async Task SaveProposalChanges()
+    {
+        if (proposal != null)
+        {
+            proposal.Author = editableProposal.Author;
+            proposal.Division = editableProposal.Division;
+
+            await ProposalService.UpdateProposal(proposal);
+            proposal = await ProposalService.GetProposalById(Id); // Перезагрузка данных
+            editableProposal = proposal?.Clone() ?? new Proposal();
+            isEditFormOpen = false;
+        }
+    }
+
+    private void CloseEditForm()
+    {
+        editableProposal = proposal?.Clone() ?? new Proposal();
+        isEditFormOpen = false;
+    }
+
+    // Удаление заявки
+    private void OpenDeleteConfirmation()
+    {
+        isDeleteConfirmationOpen = true;
+    }
+
+    private async Task ConfirmDeleteProposal()
+    {
+        if (proposal != null)
+        {
+            await ProposalService.DeleteProposal(proposal.Id);
+            GoBack();
+        }
+    }
+
+    private void CancelDelete()
+    {
+        isDeleteConfirmationOpen = false;
+    }
+
+    // Утверждение заявки
+    private void OpenApproveConfirmation()
+    {
+        isApproveConfirmationOpen = true;
+    }
+
+    private async Task ConfirmApproveProposal()
+    {
+        if (proposal != null)
+        {
+            proposal.Status = ProposalStatus.Approved;
+            await ProposalService.UpdateProposal(proposal);
+            proposal = await ProposalService.GetProposalById(Id);
+            isApproveConfirmationOpen = false;
+        }
+    }
+
+    private void CancelApprove()
+    {
+        isApproveConfirmationOpen = false;
+    }
+
+    // Материалы
+    private void OpenCreateMaterialForm()
+    {
+        newMaterial = new ProposalMaterial { ProposalId = proposal.Id };
+        isCreateMaterialOpen = true;
+    }
+
+    private async Task CreateMaterial()
+    {
+        if (newMaterial != null)
+        {
+            await ProposalService.CreateProposalMaterial(newMaterial);
+            proposal = await ProposalService.GetProposalById(Id); // Перезагрузка данных
+            newMaterial = new ProposalMaterial();
+            isCreateMaterialOpen = false;
+        }
+    }
+
+    private void CloseCreateMaterialForm()
+    {
+        newMaterial = new ProposalMaterial();
+        isCreateMaterialOpen = false;
+    }
+
+    // Редактирование материала
+    private void OpenEditMaterial(ProposalMaterial material)
+    {
+        editingMaterial = material?.Clone() ?? new ProposalMaterial();
+        isEditMaterialOpen = true;
+    }
+
+    // Удаление материала
+    private void OpenDeleteMaterialConfirmation(ProposalMaterial material)
+    {
+        editingMaterial = material;
+        isDeleteMaterialConfirmationOpen = true;
+    }
+
+    // Дополнительные методы для материалов...
+    private bool isDeleteMaterialConfirmationOpen = false;
+
+    private async Task DeleteMaterial()
+    {
+        if (editingMaterial != null)
+        {
+            editingMaterial.Status = MaterialStatus.Deleted;
+            await ProposalService.UpdateProposalMaterial(editingMaterial);
+            proposal = await ProposalService.GetProposalById(Id);
+            isDeleteMaterialConfirmationOpen = false;
+        }
     }
 }
