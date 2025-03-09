@@ -1,6 +1,13 @@
 using ClearTask;
 using ClearTask.Components;
 using Microsoft.EntityFrameworkCore;
+using ClearTask.Components.Services;
+using ClearTask.Components.Data;
+using ClearTask.Components.Models;
+using Blazorise;
+using Blazorise.Bootstrap5;
+using Blazorise.Icons.FontAwesome;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +16,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services
+    .AddBlazorise()
+    .AddBootstrap5Providers()
+    .AddFontAwesomeIcons();
 
 
 builder.Services.AddDbContextFactory<PurchaseContext>(options =>
@@ -19,6 +30,8 @@ builder.Services.AddDbContextFactory<PurchaseContext>(options =>
     )
     .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTrackingWithIdentityResolution);
 });
+
+builder.Services.AddScoped<IProposalService, ProposalService>();
 
 var app = builder.Build();
 
