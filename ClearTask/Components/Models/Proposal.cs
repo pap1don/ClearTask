@@ -16,8 +16,12 @@ namespace ClearTask.Components.Models
         public int Number { get; set; }
         public DateTime CreationDate { get; set; } = DateTime.Now;
 
+        public int data = 25;
+
         // Вычисляемое поле FullNumber
-        public string FullNumber => $"{CreationDate.Year.ToString("yy")}/{Number:D4}";
+        //public string FullNumber => $"{CreationDate.Year.ToString(CreationDate.Year)}/{Number:D4}";
+
+        public string FullNumber => $"{CreationDate.Year%100}/{Number:D4}";
 
         public ProposalStatus Status { get; set; } = ProposalStatus.Created;
 

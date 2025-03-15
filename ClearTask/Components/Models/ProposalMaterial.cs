@@ -34,11 +34,11 @@ namespace ClearTask.Components.Models
             {
                 Id = Id,
                 Status = Status,
-                Name = Name,
-                Code = Code,
-                MaterialCode = MaterialCode,
+                Name = Name ?? string.Empty,
+                Code = Code ?? string.Empty,
+                MaterialCode = MaterialCode ?? string.Empty,
                 Quantity = Quantity,
-                Comment = Comment,
+                Comment = Comment ?? string.Empty,
                 ProposalId = ProposalId
             };
         }

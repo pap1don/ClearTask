@@ -18,9 +18,17 @@ namespace ClearTask.Components.Services
         public async Task<List<Proposal>> GetAllProposals()
         {
             using var context = purchaseContextFactory.CreateDbContext();
-            return await context.Proposals
+            var proposals = await context.Proposals
                 .Where(p => p.Status != ProposalStatus.Deleted)
-                .ToListAsync() ?? new List<Proposal>();
+                .ToListAsync();
+
+            Console.WriteLine($"Количество заявок после фильтрации: {proposals.Count}");
+            foreach (var proposal in proposals)
+            {
+                Console.WriteLine($"Заявка ID: {proposal.Id}, Статус: {proposal.Status}");
+            }
+
+            return proposals ?? new List<Proposal>();
         }
 
         //public async Task CreateProposal(Proposal proposal)
@@ -43,6 +51,13 @@ namespace ClearTask.Components.Services
 
         public async Task CreateProposal(Proposal proposal)
         {
+            if (proposal == null)
+            {
+                throw new ArgumentNullException(nameof(proposal), "Заявка не может быть null.");
+            }
+
+            Console.WriteLine($"Создание заявки: {proposal.Author}, {proposal.Division}");
+
             using var context = purchaseContextFactory.CreateDbContext();
 
             // Генерация номера
@@ -57,26 +72,47 @@ namespace ClearTask.Components.Services
             context.Proposals.Add(proposal);
             await context.SaveChangesAsync();
         }
-
         public async Task DeleteProposal(int id)
         {
             using var context = purchaseContextFactory.CreateDbContext();
             var proposal = await context.Proposals.FindAsync(id);
             if (proposal != null)
             {
-                proposal.Status = ProposalStatus.Deleted;
-                await context.SaveChangesAsync();
+                try
+                {
+                    Console.WriteLine($"Заявка найдена. Меняем статус на Deleted.");
+                    Console.WriteLine($"Статус заявки перед изменением: {proposal.Status}");
+                    proposal.Status = ProposalStatus.Deleted;
+                    await context.SaveChangesAsync();
+                    Console.WriteLine($"Статус заявки после изменения: {proposal.Status}");
+                    Console.WriteLine($"Статус заявки успешно изменен на Deleted.");
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ошибка при сохранении изменений: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Ошибка: Заявка с ID {id} не найдена.");
             }
         }
 
         public async Task<Proposal> GetProposalById(int id)
         {
             using var context = purchaseContextFactory.CreateDbContext();
-            return await context.Proposals
+            var proposal = await context.Proposals
                 .Include(p => p.Materials.Where(m => m.Status != MaterialStatus.Deleted))
                 .FirstOrDefaultAsync(p => p.Id == id && p.Status != ProposalStatus.Deleted);
-        }
 
+            if (proposal == null)
+            {
+                throw new KeyNotFoundException($"Заявка с ID {id} не найдена.");
+            }
+
+            return proposal;
+        }
         public async Task UpdateProposal(Proposal proposal)
         {
             using var context = purchaseContextFactory.CreateDbContext();
@@ -89,6 +125,14 @@ namespace ClearTask.Components.Services
             using var context = purchaseContextFactory.CreateDbContext();
             material.Status = MaterialStatus.Created;
             context.ProposalMaterials.Add(material);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task DeleteProposalMaterial(ProposalMaterial material)
+        {
+            using var context = purchaseContextFactory.CreateDbContext();
+            material.Status = MaterialStatus.Deleted;
+            context.ProposalMaterials.Update(material);
             await context.SaveChangesAsync();
         }
 

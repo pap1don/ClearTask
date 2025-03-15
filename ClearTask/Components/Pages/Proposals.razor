@@ -3,12 +3,14 @@
 @using ClearTask.Components.Services
 @inject IProposalService ProposalService
 @inject NavigationManager NavManager
+@rendermode InteractiveServer
 
 <PageTitle>Список заявок</PageTitle>
 
 <h3 class="text-center">Список заявок</h3>
 
 <button class="btn btn-primary mb-3" @onclick="OpenCreateForm">Создать заявку</button>
+
 
 <table class="table">
     <thead>
@@ -27,7 +29,13 @@
             if (proposal != null)
             {
                 <tr>
-                    <td>@(proposal.FullNumber ?? "Не указан")</td>
+                    <td>
+                        <!-- Добавляем ссылку на страницу подробностей -->
+                        <a href="@($"/proposals/{proposal.Id}")" class="text-decoration-none">
+                            @(proposal.FullNumber ?? "Не указан")
+                        </a>
+                    </td>
+                    @* <td>@(proposal.FullNumber ?? "Не указан")</td> *@
                     <td>@(proposal.Author ?? "")</td>
                     <td>@(proposal.Division ?? "")</td>
                     <td>@(proposal.CreationDate.ToString("dd.MM.yyyy") ?? "")</td>
@@ -52,13 +60,22 @@
     <ModalBody>
         @if (newProposal != null) // Проверка на null
         {
-            <EditForm Model="@newProposal" OnValidSubmit="CreateProposal">
+            <EditForm Model="@newProposal" OnValidSubmit="CreateProposal" @rendermode="InteractiveServer">
                 <DataAnnotationsValidator />
                 <Blazorise.ValidationSummary />
+                <input @bind="newProposal.Author" @oninput="OnAuthorChanged" placeholder="Автор" required />
+                <input @bind="newProposal.Division" @oninput="OnDivisionChanged" placeholder="Подразделение" required />
+                @code {
+        private void OnAuthorChanged(ChangeEventArgs e)
+        {
+            Console.WriteLine($"Author changed to: {e.Value}");
+        }
 
-                <Blazorise.TextEdit @bind-Value="newProposal.Author" Placeholder="Автор" Required />
-                <Blazorise.TextEdit @bind-Value="newProposal.Division" Placeholder="Подразделение" Required />
-
+        private void OnDivisionChanged(ChangeEventArgs e)
+        {
+            Console.WriteLine($"Division changed to: {e.Value}");
+        }
+            }
                 <button type="submit" class="btn btn-primary mt-3">Сохранить</button>
             </EditForm>
         }
@@ -97,7 +114,7 @@
     private Proposal selectedProposal = new(); // Инициализация
     private Proposal newProposal = new()
         {
-            Author = string.Empty,
+            Author = string.Empty,      
             Division = string.Empty,
             Status = ProposalStatus.Created
         };
@@ -119,16 +136,23 @@
     }
 
     private async Task CreateProposal()
+
     {
-        if (newProposal != null && !string.IsNullOrEmpty(newProposal.Author) && !string.IsNullOrEmpty(newProposal.Division))
+        if (newProposal == null)
+        {
+            Console.WriteLine("Ошибка: newProposal равен null.");
+            return;
+        }
+
+        Console.WriteLine($"Создание заявки: Author={newProposal.Author}, Division={newProposal.Division}");
+        if (newProposal != null && !string.IsNullOrWhiteSpace(newProposal.Author) && !string.IsNullOrWhiteSpace(newProposal.Division))
         {
             await ProposalService.CreateProposal(newProposal);
             proposals = await ProposalService.GetAllProposals() ?? new List<Proposal>();
-            NavManager.NavigateTo($"/proposals/{newProposal.Id}");
             createFormIsOpened = false;
         }
     }
-
+            
     private void CloseCreateForm()
     {
         createFormIsOpened = false;
@@ -140,22 +164,41 @@
         deleteConfirmationIsOpened = false;
     }
 
-    private void OpenDeleteConfirmation(Proposal proposal)
-    {
-        if (proposal != null)
-        {
-            selectedProposal = proposal.Clone(); // Теперь работает
-            deleteConfirmationIsOpened = true;
-        }
-    }
-
     private async Task ConfirmDelete()
     {
         if (selectedProposal != null)
         {
-            await ProposalService.DeleteProposal(selectedProposal.Id);
+            Console.WriteLine($"Удаление заявки с ID: {selectedProposal.Id}");
+            selectedProposal.Status = ProposalStatus.Deleted;
+            await ProposalService.UpdateProposal(selectedProposal);
             proposals = await ProposalService.GetAllProposals() ?? new List<Proposal>();
             deleteConfirmationIsOpened = false;
+
+            StateHasChanged();
+            Console.WriteLine("Список заявок обновлен.");
         }
     }
+
+    //  if (proposal != null)
+    // {
+   // proposal.Status = ProposalStatus.Deleted;
+    //     await ProposalService.UpdateProposal(proposal);
+    // StateHasChanged();
+    // NavManager.NavigateTo("/proposals");
+    // }
+
+    private void OpenDeleteConfirmation(Proposal proposal)
+    {
+        if (proposal != null)
+        {
+            selectedProposal = proposal.Clone(); // Клонируем объект для безопасности
+            deleteConfirmationIsOpened = true;
+            Console.WriteLine($"Открыто окно подтверждения удаления для заявки с ID: {selectedProposal.Id}");
+        }
+        else
+        {
+            Console.WriteLine("Ошибка: Переданная заявка равна null.");
+        }
+    }
+
 }

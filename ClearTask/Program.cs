@@ -17,10 +17,9 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services
-    .AddBlazorise()
+    .AddBlazorise(options => options.Immediate = true)
     .AddBootstrap5Providers()
     .AddFontAwesomeIcons();
-
 
 builder.Services.AddDbContextFactory<PurchaseContext>(options =>
 {
